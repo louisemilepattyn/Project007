@@ -1,23 +1,26 @@
 # app/pipeline/pipeline.py
 from pathlib import Path
-from app.extractors.tables_camelot import extract_tables_camelot
-from app.extractors.tables_pdfplumber import extract_tables_pdfplumber
-from app.extractors.ocr_pytesseract import extract_ocr_blocks
-from app.parsers.table_cleaners import normalize_tables, to_long_rows
+from app.ml.ocr_doctr import pdf_to_tokens_ir
+from app.ml.hf_table_transformer import add_hf_tables
+from app.parsers.hf_table_to_rows import tables_to_lineitems
 from app.io.schema import LineItem, ExtractionResult
 from app.validators.accounting_rules import reconcile
 
 def run_pipeline(pdf_path: Path) -> ExtractionResult:
-    tables = extract_tables_camelot(pdf_path)
-    if not tables:
-        tables = extract_tables_pdfplumber(pdf_path)
-    if not tables:
-        tables = extract_ocr_blocks(pdf_path)
-
-    cleaned = normalize_tables(tables)
-    rows = to_long_rows(cleaned)
-
-    items = [LineItem(**r) for r in rows]
+    # 1) OCR tokens for all pages
+    ir = pdf_to_tokens_ir(pdf_path)
+    # 2) Detect table structure and build cell grid
+    ir = add_hf_tables(ir, pdf_path)
+    # 3) Convert tables → LineItems (heuristics for acc/name/amount/year)
+    items = tables_to_lineitems(ir)
+    # 4) Validate & return
     warnings = reconcile(items)
-
-    return ExtractionResult(items=items, warnings=warnings, diagnostics={"n_tables": len(tables)})
+    return ExtractionResult(
+        items=items,
+        warnings=warnings,
+        diagnostics={
+            "flow": "huggingface+doctr",
+            "n_pages": len(ir.pages),
+            "n_items": len(items),
+        }
+    )

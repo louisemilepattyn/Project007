@@ -1,11 +1,20 @@
 # requirements.txt
-camelot-py[cv]
-pdfplumber
+# Core
 pandas
-pytesseract
-opencv-python
+pydantic
 fastapi
 uvicorn
-pydantic
 python-multipart
 
+# HF + vision
+transformers>=4.41
+timm
+torch           # CPU build is ok; GPU faster if available
+torchvision
+pymupdf         # renders PDF pages to images (fitz)
+
+# OCR via docTR (PyTorch backend)
+python-doctr[torch]
+
+# Utilities
+opencv-python

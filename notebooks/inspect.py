@@ -55,6 +55,14 @@ def run_extraction(_):
             return
 
         # Pivot (wide) for quick valuation use
+        required_cols = ["rekeningnummer", "postnaam", "fiscal_year", "amount"]
+        missing_cols = [col for col in required_cols if col not in df_long.columns]
+        
+        if missing_cols:
+            print(f"Missing required columns: {missing_cols}")
+            print(f"Available columns: {list(df_long.columns)}")
+            return
+            
         wide = df_long.pivot_table(index=["rekeningnummer","postnaam"],
                                    columns="fiscal_year", values="amount",
                                    aggfunc="sum", fill_value=0).sort_index()
